@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 from datetime import date
 
 import pandas as pd
@@ -16,11 +17,12 @@ from app.config.settings import (
     TIME_INTERVAL_MINUTES,
 )
 from app.services.csv_persistence import append_timesheet_rows, load_timesheets, write_timesheets
+from app.services.allocation_override_service import validate_allocation_overrides
 from app.services.editable_summary_service import validate_and_prepare_edits
 from app.services.project_service import get_active_projects, load_projects, save_projects
 from app.services.summary_aggregation_service import aggregate_by_date_project, aggregate_by_project
 from app.services.time_calculator import compute_daily_total, compute_session_duration
-from app.services.timesheet_service import build_timesheet_rows
+from app.services.timesheet_service import build_timesheet_rows, build_timesheet_rows_from_allocations
 from app.utils.time_options import generate_time_options, with_empty_option
 from app.utils.time_utils import format_decimal
 from app.validators.timesheet_validator import validate_daily_inputs
@@ -168,9 +170,10 @@ def _render_daily_entry() -> None:
     col2.metric("Afternoon Duration (h)", _display_hours(afternoon_duration))
     col3.metric("Daily Total (h)", _display_hours(daily_total))
 
-    rows = []
+    rows: list = []
+    computed_sessions = {}
     if not validation.errors:
-        rows, _, daily_total = build_timesheet_rows(
+        rows, computed_sessions, daily_total = build_timesheet_rows(
             entry_date,
             {
                 "morning": validation.sessions["morning"].data,
@@ -181,31 +184,70 @@ def _render_daily_entry() -> None:
 
     with st.expander("Allocation Details", expanded=False):
         if rows:
+            session_durations = {
+                computed.session_label: computed.duration_hours
+                for computed in computed_sessions.values()
+            }
             allocation_df = pd.DataFrame(
                 [
                     {
                         "Session": row.session,
                         "Project Number": row.project_number,
-                        "Allocated Time": format_decimal(row.allocated_time, DECIMAL_PLACES),
+                        "Session Duration": format_decimal(
+                            session_durations.get(row.session), DECIMAL_PLACES
+                        ),
+                        "Allocated Time": float(row.allocated_time),
                     }
                     for row in rows
                 ]
             )
-            st.dataframe(allocation_df, use_container_width=True)
+            allocation_signature = "|".join(
+                [
+                    entry_date.isoformat(),
+                    morning_in,
+                    morning_out,
+                    ",".join(morning_projects),
+                    afternoon_in,
+                    afternoon_out,
+                    ",".join(afternoon_projects),
+                ]
+            )
+            editor_key = f"allocation_editor_{hashlib.md5(allocation_signature.encode()).hexdigest()}"
+            edited_allocations = st.data_editor(
+                allocation_df,
+                use_container_width=True,
+                num_rows="fixed",
+                disabled=["Session", "Project Number", "Session Duration"],
+                key=editor_key,
+            )
+            validated_allocations, allocation_errors = validate_allocation_overrides(
+                edited_allocations, session_durations, DECIMAL_PLACES
+            )
+            if allocation_errors:
+                for error in allocation_errors:
+                    st.error(error)
         else:
+            validated_allocations = pd.DataFrame()
+            allocation_errors = []
+            session_durations = {}
             st.info("No allocations to display yet.")
 
     if st.button("Commit Timesheet"):
         if validation.errors:
             st.error("Please fix validation errors before committing.")
             return
-        rows, _, _ = build_timesheet_rows(
+        if allocation_errors:
+            st.error("Please fix allocation errors before committing.")
+            return
+        rows = build_timesheet_rows_from_allocations(
             entry_date,
+            validated_allocations,
             {
                 "morning": validation.sessions["morning"].data,
                 "afternoon": validation.sessions["afternoon"].data,
             },
-            DECIMAL_PLACES,
+            session_durations,
+            daily_total,
         )
         try:
             append_timesheet_rows(CSV_FILE, rows)
@@ -230,6 +272,7 @@ def _render_summary() -> None:
     st.markdown("### Editable Timesheet Entries")
     editable_df = df.copy()
     editable_df["Date"] = pd.to_datetime(editable_df["Date"], errors="coerce")
+    st.caption("Delete rows using the table row menu, then click Save Summary Changes.")
     edited_df = st.data_editor(
         editable_df,
         use_container_width=True,

@@ -50,3 +50,11 @@ def test_write_timesheets_creates_backup(tmp_path: Path) -> None:
     write_timesheets(path, df, backup=True)
     backups = list(tmp_path.glob("timesheets.bak.*"))
     assert backups
+
+
+def test_write_timesheets_allows_empty(tmp_path: Path) -> None:
+    path = tmp_path / "timesheets.csv"
+    df = load_timesheets(path)
+    write_timesheets(path, df, backup=False)
+    content = path.read_text(encoding="utf-8")
+    assert "Date,Session,Check-in" in content

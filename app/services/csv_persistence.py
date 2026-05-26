@@ -65,11 +65,16 @@ def load_timesheets(path: Path) -> pd.DataFrame:
 
 def write_timesheets(path: Path, df: pd.DataFrame, backup: bool = True) -> None:
     if df.empty:
-        raise ValueError("Cannot write an empty timesheet dataset.")
-    missing = [col for col in CSV_COLUMNS if col not in df.columns]
-    if missing:
-        raise ValueError("Missing columns: " + ", ".join(missing))
-    df = df[CSV_COLUMNS].copy()
+        missing = [col for col in CSV_COLUMNS if col not in df.columns]
+        if missing:
+            df = pd.DataFrame(columns=CSV_COLUMNS)
+        else:
+            df = df[CSV_COLUMNS].copy()
+    else:
+        missing = [col for col in CSV_COLUMNS if col not in df.columns]
+        if missing:
+            raise ValueError("Missing columns: " + ", ".join(missing))
+        df = df[CSV_COLUMNS].copy()
 
     if backup and path.exists():
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")

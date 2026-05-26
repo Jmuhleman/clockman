@@ -6,7 +6,7 @@ A production-ready, offline Timesheet Management System built with Streamlit and
 1. Morning and afternoon session tracking with validation.
 2. Project management page with active project selection.
 3. Automatic session and daily hour calculations.
-4. Equal allocation of time across projects.
+4. Equal allocation of time across projects with optional manual override.
 5. Editable summary grid with validation and safe CSV persistence.
 6. Aggregated summaries by project and by date + project.
 
@@ -72,6 +72,7 @@ streamlit run streamlit_app.py
 - Use the **Summary** page to edit existing rows in-place.
 - Click **Save Summary Changes** to validate and persist updates.
 - Aggregated tables update automatically from saved data.
+- Delete rows in the editor to remove entries, then save.
 
 ## Migration Notes
 - Create `data/projects.csv` using the schema above to enable project selection.

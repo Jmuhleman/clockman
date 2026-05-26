@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date
 from decimal import Decimal
 from typing import Optional
 
@@ -18,7 +19,7 @@ class ValidationResult:
 
 
 def _parse_date(value: object) -> tuple[Optional[date], Optional[str]]:
-    if value is None or (isinstance(value, float) and pd.isna(value)):
+    if value is None or pd.isna(value):
         return None, "Date is required."
     try:
         parsed = pd.to_datetime(value).date()
@@ -28,7 +29,7 @@ def _parse_date(value: object) -> tuple[Optional[date], Optional[str]]:
 
 
 def _parse_time(value: object) -> tuple[Optional[str], Optional[str]]:
-    if value is None or (isinstance(value, float) and pd.isna(value)):
+    if value is None or pd.isna(value):
         return None, None
     text = str(value).strip()
     if not text:
@@ -44,6 +45,8 @@ def validate_and_prepare_edits(df: pd.DataFrame) -> ValidationResult:
     missing = [col for col in CSV_COLUMNS if col not in df.columns]
     if missing:
         return ValidationResult(df, ["Missing columns: " + ", ".join(missing)])
+    if df.empty:
+        return ValidationResult(df[CSV_COLUMNS].copy(), [])
 
     working = df[CSV_COLUMNS].copy()
     working = working.fillna("")

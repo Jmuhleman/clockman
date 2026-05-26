@@ -1,4 +1,5 @@
 project_code,project_name,active_status
 PRJ-1001,Project Alpha,True
 PRJ-2002,Project Beta,True
-PRJ-3001,Project Gamma,False
+PRJ-3001,Project Gamma,True
+supe,super project,True
