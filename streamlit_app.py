@@ -326,16 +326,29 @@ def _render_projects() -> None:
     if projects_df.empty:
         st.info("No projects yet. Add your first project below.")
 
+    editor_df = projects_df.copy()
+    if "active_status" in editor_df.columns:
+        editor_df["active_status"] = editor_df["active_status"].fillna(True).astype(bool)
+
     edited_projects = st.data_editor(
-        projects_df,
+        editor_df,
         use_container_width=True,
         num_rows="dynamic",
+        column_config={
+            "active_status": st.column_config.CheckboxColumn(
+                "Active",
+                help="When checked, the project appears in daily timesheet entry.",
+                default=True,
+            ),
+        },
     )
 
     if st.button("Save Projects"):
         edited_projects = edited_projects.copy()
         if "active_status" in edited_projects.columns:
-            edited_projects["active_status"] = edited_projects["active_status"].fillna(True)
+            edited_projects["active_status"] = (
+                edited_projects["active_status"].fillna(True).astype(bool)
+            )
         try:
             save_projects(edited_projects)
         except ValueError as exc:
