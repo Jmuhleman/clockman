@@ -11,6 +11,23 @@ def _ensure_allocated_numeric(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def aggregate_by_date(df: pd.DataFrame) -> pd.DataFrame:
+    if df.empty:
+        return pd.DataFrame(columns=["Date", "Total Hours Worked"])
+    df = _ensure_allocated_numeric(df)
+    if "Date" not in df.columns:
+        raise ValueError("Date column is missing.")
+    working = df.copy()
+    working["Date"] = pd.to_datetime(working["Date"], errors="coerce").dt.date.astype(str)
+    result = (
+        working.groupby("Date", as_index=False)["Allocated Time"]
+        .sum()
+        .rename(columns={"Allocated Time": "Total Hours Worked"})
+        .sort_values("Date")
+    )
+    return result
+
+
 def aggregate_by_project(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
         return pd.DataFrame(columns=["Project Number", "Total Allocated Hours"])

@@ -17,7 +17,11 @@ from app.services.timesheet_persistence import append_timesheet_rows, load_times
 from app.services.allocation_override_service import validate_allocation_overrides
 from app.services.editable_summary_service import validate_and_prepare_edits
 from app.services.project_service import get_active_projects, load_projects, save_projects
-from app.services.summary_aggregation_service import aggregate_by_date_project, aggregate_by_project
+from app.services.summary_aggregation_service import (
+    aggregate_by_date,
+    aggregate_by_date_project,
+    aggregate_by_project,
+)
 from app.services.time_calculator import compute_daily_total, compute_session_duration
 from app.services.timesheet_service import build_timesheet_rows, build_timesheet_rows_from_allocations
 from app.utils.time_options import generate_time_options, with_empty_option
@@ -289,6 +293,13 @@ def _render_summary() -> None:
             else:
                 st.success("Summary changes saved.")
                 df = result.cleaned
+
+    st.markdown("### Totals by Day")
+    try:
+        daily_totals = aggregate_by_date(df)
+        st.dataframe(daily_totals, use_container_width=True)
+    except ValueError as exc:
+        st.error(str(exc))
 
     st.markdown("### Totals by Project")
     try:
