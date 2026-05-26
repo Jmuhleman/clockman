@@ -1,11 +1,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
 
 import pandas as pd
+import streamlit as st
 
 from app.config.settings import PROJECT_COLUMNS
+from app.database.repositories.projects_repository import (
+    delete_projects_by_code,
+    get_projects,
+    upsert_projects,
+)
 
 
 @dataclass(frozen=True)
@@ -13,12 +18,6 @@ class Project:
     code: str
     name: str
     active: bool
-
-
-def ensure_projects_csv(path: Path) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    if not path.exists():
-        pd.DataFrame(columns=PROJECT_COLUMNS).to_csv(path, index=False)
 
 
 def validate_projects_df(df: pd.DataFrame) -> list[str]:
@@ -55,14 +54,12 @@ def validate_projects_df(df: pd.DataFrame) -> list[str]:
     return errors
 
 
-def load_projects(path: Path) -> pd.DataFrame:
-    ensure_projects_csv(path)
-    df = pd.read_csv(path)
+@st.cache_data(ttl=30)
+def load_projects() -> pd.DataFrame:
+    records = get_projects()
+    df = pd.DataFrame(records or [])
     if df.empty:
         return pd.DataFrame(columns=PROJECT_COLUMNS)
-    missing = [col for col in PROJECT_COLUMNS if col not in df.columns]
-    if missing:
-        raise ValueError("Project CSV schema mismatch. Missing: " + ", ".join(missing))
     df = df[PROJECT_COLUMNS].copy()
     df["project_code"] = df["project_code"].astype(str).str.strip()
     df["project_name"] = df["project_name"].astype(str).str.strip()
@@ -70,7 +67,7 @@ def load_projects(path: Path) -> pd.DataFrame:
     return df
 
 
-def save_projects(path: Path, df: pd.DataFrame) -> None:
+def save_projects(df: pd.DataFrame) -> None:
     errors = validate_projects_df(df)
     if errors:
         raise ValueError(" ".join(errors))
@@ -78,12 +75,24 @@ def save_projects(path: Path, df: pd.DataFrame) -> None:
     df["project_code"] = df["project_code"].astype(str).str.strip()
     df["project_name"] = df["project_name"].astype(str).str.strip()
     df["active_status"] = df["active_status"].fillna(True).astype(bool)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    df.to_csv(path, index=False)
+
+    existing_records = get_projects()
+    existing_codes = {row["project_code"] for row in existing_records or []}
+    new_codes = set(df["project_code"])
+
+    to_delete = sorted(existing_codes - new_codes)
+    if to_delete:
+        delete_projects_by_code(to_delete)
+
+    payload = df.to_dict(orient="records")
+    if payload:
+        upsert_projects(payload)
+
+    load_projects.clear()
 
 
-def get_active_projects(path: Path) -> list[Project]:
-    df = load_projects(path)
+def get_active_projects() -> list[Project]:
+    df = load_projects()
     if df.empty:
         return []
     active_df = df[df["active_status"] == True]

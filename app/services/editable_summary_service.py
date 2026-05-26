@@ -7,7 +7,7 @@ from typing import Optional
 
 import pandas as pd
 
-from app.config.settings import CSV_COLUMNS, DECIMAL_PLACES, SESSION_LABELS, TIME_FORMAT
+from app.config.settings import DECIMAL_PLACES, SESSION_LABELS, TIME_FORMAT, TIMESHEET_COLUMNS
 from app.services.time_calculator import compute_session_duration
 from app.utils.time_utils import parse_time_str, round_hours
 
@@ -42,13 +42,13 @@ def _parse_time(value: object) -> tuple[Optional[str], Optional[str]]:
 
 def validate_and_prepare_edits(df: pd.DataFrame) -> ValidationResult:
     errors: list[str] = []
-    missing = [col for col in CSV_COLUMNS if col not in df.columns]
+    missing = [col for col in TIMESHEET_COLUMNS if col not in df.columns]
     if missing:
         return ValidationResult(df, ["Missing columns: " + ", ".join(missing)])
     if df.empty:
-        return ValidationResult(df[CSV_COLUMNS].copy(), [])
+        return ValidationResult(df[TIMESHEET_COLUMNS].copy(), [])
 
-    working = df[CSV_COLUMNS].copy()
+    working = df[TIMESHEET_COLUMNS].copy()
     working = working.fillna("")
 
     valid_sessions = set(SESSION_LABELS.values())
@@ -167,5 +167,5 @@ def validate_and_prepare_edits(df: pd.DataFrame) -> ValidationResult:
         else ""
     )
 
-    working = working[CSV_COLUMNS]
+    working = working[TIMESHEET_COLUMNS]
     return ValidationResult(working, errors)

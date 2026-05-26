@@ -1,9 +1,5 @@
-from pathlib import Path
-
-APP_ROOT = Path(__file__).resolve().parents[2]
-DATA_DIR = APP_ROOT / "data"
-CSV_FILE = DATA_DIR / "timesheets.csv"
-PROJECTS_FILE = DATA_DIR / "projects.csv"
+PROJECTS_TABLE = "projects"
+TIMESHEETS_TABLE = "timesheet_entries"
 
 TIME_FORMAT = "%H:%M"
 DECIMAL_PLACES = 2
@@ -19,7 +15,7 @@ SESSION_LABELS = {
     "afternoon": "Afternoon",
 }
 
-CSV_COLUMNS = [
+TIMESHEET_COLUMNS = [
     "Date",
     "Session",
     "Check-in",

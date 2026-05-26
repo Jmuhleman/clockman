@@ -4,6 +4,8 @@ __pycache__/
 venv/
 env/
 .pytest_cache/
-.streamlit/
 .DS_Store
+
 data/*.bak.*
+
+.streamlit/secrets.toml

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import csv
 import hashlib
 from datetime import date
 
@@ -8,15 +7,13 @@ import pandas as pd
 import streamlit as st
 
 from app.config.settings import (
-    CSV_FILE,
     DECIMAL_PLACES,
     DEFAULT_SESSION_TIMES,
-    PROJECTS_FILE,
     SESSION_LABELS,
     TIME_FORMAT,
     TIME_INTERVAL_MINUTES,
 )
-from app.services.csv_persistence import append_timesheet_rows, load_timesheets, write_timesheets
+from app.services.timesheet_persistence import append_timesheet_rows, load_timesheets, write_timesheets
 from app.services.allocation_override_service import validate_allocation_overrides
 from app.services.editable_summary_service import validate_and_prepare_edits
 from app.services.project_service import get_active_projects, load_projects, save_projects
@@ -94,7 +91,7 @@ def _render_daily_entry() -> None:
     entry_date = st.date_input("Date", value=date.today())
 
     try:
-        active_projects = get_active_projects(PROJECTS_FILE)
+        active_projects = get_active_projects()
     except ValueError as exc:
         st.error(str(exc))
         active_projects = []
@@ -250,8 +247,8 @@ def _render_daily_entry() -> None:
             daily_total,
         )
         try:
-            append_timesheet_rows(CSV_FILE, rows)
-        except (ValueError, OSError, csv.Error) as exc:
+            append_timesheet_rows(rows)
+        except ValueError as exc:
             st.error(f"Commit failed: {exc}")
         else:
             st.success("Timesheet committed successfully.")
@@ -260,7 +257,7 @@ def _render_daily_entry() -> None:
 def _render_summary() -> None:
     st.subheader("Timesheet Summary")
     try:
-        df = load_timesheets(CSV_FILE)
+        df = load_timesheets()
     except ValueError as exc:
         st.error(str(exc))
         return
@@ -286,8 +283,8 @@ def _render_summary() -> None:
                 st.error(error)
         else:
             try:
-                write_timesheets(CSV_FILE, result.cleaned, backup=True)
-            except (ValueError, OSError) as exc:
+                write_timesheets(result.cleaned, backup=True)
+            except ValueError as exc:
                 st.error(f"Failed to save changes: {exc}")
             else:
                 st.success("Summary changes saved.")
@@ -311,7 +308,7 @@ def _render_summary() -> None:
 def _render_projects() -> None:
     st.subheader("Project Management")
     try:
-        projects_df = load_projects(PROJECTS_FILE)
+        projects_df = load_projects()
     except ValueError as exc:
         st.error(str(exc))
         return
@@ -329,7 +326,7 @@ def _render_projects() -> None:
         if "active_status" in edited_projects.columns:
             edited_projects["active_status"] = edited_projects["active_status"].fillna(True)
         try:
-            save_projects(PROJECTS_FILE, edited_projects)
+            save_projects(edited_projects)
         except ValueError as exc:
             st.error(str(exc))
         else:
