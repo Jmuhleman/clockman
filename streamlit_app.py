@@ -1,10 +1,16 @@
 from __future__ import annotations
 
+import streamlit as st
+
+from auth import check_password
+
+# Enforce password gate BEFORE importing any application logic.
+check_password()
+
 import hashlib
 from datetime import date
 
 import pandas as pd
-import streamlit as st
 
 from app.config.settings import (
     DECIMAL_PLACES,
@@ -358,7 +364,6 @@ def _render_projects() -> None:
 
 
 def main() -> None:
-    st.set_page_config(page_title="Timesheet Management System", layout="wide")
     _init_session_state()
 
     st.title("Timesheet Management System")
